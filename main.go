@@ -43,11 +43,11 @@ type profile struct {
 
 func main() {
 	var relays arrayFlags = []string{"wss://relay.nostr.band"}
-	var use_name bool
-	var use_display_name bool
+	var show_name bool
+	var show_display_name bool
 	var j bool
-	flag.BoolVar(&use_name, "name", false, "display name only")
-	flag.BoolVar(&use_display_name, "display_name", false, "display display_name only")
+	flag.BoolVar(&show_name, "show-name", false, "show name only")
+	flag.BoolVar(&show_display_name, "show-display-name", false, "show display_name only")
 	flag.Var(&relays, "relay", "relays to connect")
 	flag.BoolVar(&j, "json", false, "output JSON")
 	flag.Parse()
@@ -57,6 +57,7 @@ func main() {
 		os.Exit(2)
 	}
 
+	authors := []string{}
 	for _, arg := range flag.Args() {
 		var pub string
 		if pp := sdk.InputToProfile(context.TODO(), arg); pp != nil {
@@ -65,33 +66,44 @@ func main() {
 			log.Printf("failed to parse pubkey from %v", arg)
 			continue
 		}
-		ctx := context.Background()
-		pool := nostr.NewSimplePool(ctx)
-		ev := pool.QuerySingle(ctx, relays, nostr.Filter{
-			Kinds:   []int{nostr.KindProfileMetadata},
-			Authors: []string{pub},
-			Limit:   1,
-		})
+		authors = append(authors, pub)
+	}
 
-		if ev == nil {
-			log.Printf("failed to query event for %v", arg)
-			continue
+	ctx := context.Background()
+	pool := nostr.NewSimplePool(ctx)
+	ch := pool.SubManyEose(ctx, relays, nostr.Filters{{
+		Kinds:   []int{nostr.KindProfileMetadata},
+		Authors: authors,
+		Limit:   len(authors),
+	}})
+
+	if ch == nil {
+		log.Fatal("failed to query event")
+	}
+
+	n := 0
+	for n < len(authors) {
+		ev, ok := <-ch
+		if !ok {
+			break
 		}
+		n++
 
 		if j {
 			fmt.Println(ev.Content)
 		} else {
 			var p profile
 			err := json.Unmarshal([]byte(ev.Content), &p)
-			if ev == nil {
-				log.Fatal(err)
+			if err != nil {
+				log.Print(err)
+				continue
 			}
-			if use_name {
+			if show_name {
 				fmt.Println(p.Name)
-			} else if use_display_name {
+			} else if show_display_name {
 				fmt.Println(p.DisplayName)
 			} else {
-				fmt.Printf("Pubkey: %v\n", pub)
+				fmt.Printf("Pubkey: %v\n", ev.PubKey)
 				fmt.Printf("Name: %v\n", p.Name)
 				fmt.Printf("DisplayName: %v\n", p.DisplayName)
 				fmt.Printf("WebSite: %v\n", p.Website)
