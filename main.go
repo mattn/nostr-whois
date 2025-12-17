@@ -43,7 +43,11 @@ type profile struct {
 
 func main() {
 	var relays arrayFlags = []string{"wss://relay.nostr.band"}
+	var use_name bool
+	var use_display_name bool
 	var j bool
+	flag.BoolVar(&use_name, "name", false, "display name only")
+	flag.BoolVar(&use_display_name, "display_name", false, "display display_name only")
 	flag.Var(&relays, "relay", "relays to connect")
 	flag.BoolVar(&j, "json", false, "output JSON")
 	flag.Parse()
@@ -82,15 +86,21 @@ func main() {
 			if ev == nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("Pubkey: %v\n", pub)
-			fmt.Printf("Name: %v\n", p.Name)
-			fmt.Printf("DisplayName: %v\n", p.DisplayName)
-			fmt.Printf("WebSite: %v\n", p.Website)
-			fmt.Printf("Picture: %v\n", p.Picture)
-			fmt.Printf("NIP-05: %v\n", p.Nip05)
-			fmt.Printf("LUD-16: %v\n", p.Lud16)
-			fmt.Printf("About: %v\n", p.About)
-			fmt.Println()
+			if use_name {
+				fmt.Println(p.Name)
+			} else if use_display_name {
+				fmt.Println(p.DisplayName)
+			} else {
+				fmt.Printf("Pubkey: %v\n", pub)
+				fmt.Printf("Name: %v\n", p.Name)
+				fmt.Printf("DisplayName: %v\n", p.DisplayName)
+				fmt.Printf("WebSite: %v\n", p.Website)
+				fmt.Printf("Picture: %v\n", p.Picture)
+				fmt.Printf("NIP-05: %v\n", p.Nip05)
+				fmt.Printf("LUD-16: %v\n", p.Lud16)
+				fmt.Printf("About: %v\n", p.About)
+				fmt.Println()
+			}
 		}
 	}
 }
